@@ -141,42 +141,18 @@ inline std::string narrow(const wchar_t* ws, int ns = -1)
     return s;
 }
 
-// SQL CREATE TABLE command from a range.
-/*
-inline std::wstring sqlite_create_table(const xll::OPER& name, const xll::OPER& o)
+// Sqlite type of oper.
+inline const char* sqlite_type(const xll::OPER& o)
 {
-    ensure (o.rows() >= 2);
-    std::wstring s = L"CREATE TABLE ";
-    s.append(name.val.str + 1, name.val.str[0]);
-    s.append(L"(\n");
-    std::wstring comma = L"";
-    for (int i = 0; i < o.columns(); ++i) {
-        const xll::OPER& oi = o(0,i);
-        ensure (oi.isStr());
-        s.append(comma);
-        s.append(oi.val.str + 1, oi.val.str[0]);
-
-        switch (o(1,i).xltype) {
-        case xltypeNum:
-            s.append(L" REAL");
-            break;
-        case xltypeStr:
-            s.append(L" TEXT");
-            break;
-        case xltypeInt:
-            s.append(L" INTEGER");
-            break;
-        default:
-            ensure(!"invalid sqlite type");
-        }
-
-        comma = L", ";
+    switch (o.type()) {
+    case xltypeNum:
+        return "REAL";
+    case xltypeBigData:
+        return "BLOB";
     }
-    s.append(L"\n);");
 
-    return s;
+    return "TEXT";
 }
-*/
 
 // Works like sqlite3_exec but returns an OPER.
 inline xll::OPER sqlite_range(sqlite::db& db, const char* sql, bool header = false)
@@ -214,7 +190,7 @@ inline xll::OPER sqlite_range(sqlite::db& db, const char* sql, bool header = fal
                 row[i] = sqlite3_column_int(stmt, i);
                 break;
             case SQLITE_NULL:
-                row[i] = xll::OPER(xlerr::NA); // #NULL ???
+                row[i] = xll::OPER(xlerr::Null); // #NULL ???
                 break;
             default:
                 row[i] = xll::OPER(xlerr::NA);
