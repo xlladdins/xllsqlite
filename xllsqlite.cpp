@@ -3,10 +3,11 @@
 #include "xllsqlite.h"
 
 using namespace xll;
-
+/*
 AddIn xai_sqlite(
     Documentation(L"Sqlite3 wrapper")
 );
+*/
 
 AddIn xai_get_name(
     Function(XLL_LPOPER, L"?xll_get_name", L"GET_NAME")
@@ -113,7 +114,7 @@ HANDLEX WINAPI xll_sqlite_db(const char* file)
 AddIn xai_sqlite_exec(
     Function(XLL_LPOPER, L"?xll_sqlite_exec", L"SQLITE.EXEC")
     .Arg(XLL_HANDLE, L"handle", L"is the sqlite3 database handle returned by SQLITE.DB.")
-    .Arg(XLL_CSTRING4, L"sql", L"is the SQL query to execute on the database.")
+    .Arg(XLL_CSTRING4, L"sql", L"is the SQL query to execute on the database."/*, "select * from sqlite_schema"*/)
     .Arg(XLL_BOOL, L"?headers", L"is an optional argument to specify if headers should be included.")
     .FunctionHelp(L"Return the result of executing a SQL command on a database.")
     .Category(L"SQLITE")
@@ -135,6 +136,8 @@ LPOPER WINAPI xll_sqlite_exec(HANDLEX h, const char* sql, BOOL headers)
 
     return &o;
 }
+
+// select * from sqlite_schema
 
 #ifdef _DEBUG
 

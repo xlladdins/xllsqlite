@@ -1,6 +1,6 @@
 // xllsqlite.h - sqlite3 wrapper
 #pragma once
-#include "sqlite-amalgamation-3280000/sqlite3.h"
+#include "sqlite3.h"
 #include "xll12/xll/xll.h"
 
 namespace sqlite {
@@ -16,9 +16,14 @@ namespace sqlite {
         { }
         value& operator=(const value& v)
         {
-            return *this = value(v);
+            if (this != &v) {
+                sqlite3_value_free(val);
+                val = sqlite3_value_dup(v.val);
+            }
+
+            return *this;
         }
-        value(value&& v)
+        value(value&& v) noexcept
             : val(v.val)
         {
             v.val = sqlite3_value_dup(0);
@@ -69,7 +74,7 @@ namespace sqlite {
             const char* tail_;
         public:
             stmt(sqlite::db& db)
-                : db(db), pstmt(nullptr)
+                : db(db), pstmt(nullptr), tail_(nullptr)
             { }
             stmt(const stmt&) = delete;
             stmt& operator=(const stmt&) = delete;
