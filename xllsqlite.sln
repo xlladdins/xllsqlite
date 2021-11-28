@@ -1,11 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.28307.572
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.31911.196
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "xllsqlite", "xllsqlite.vcxproj", "{CE38A3F1-17E1-4E6B-958F-8EB74DCF5316}"
-EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "xll12", "xll12\xll12.vcxproj", "{3563C165-8A72-4BE5-B8AF-FD5904C9030E}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "xll_sqlite", "xllsqlite.vcxproj", "{CE38A3F1-17E1-4E6B-958F-8EB74DCF5316}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -23,14 +21,6 @@ Global
 		{CE38A3F1-17E1-4E6B-958F-8EB74DCF5316}.Release|x64.Build.0 = Release|x64
 		{CE38A3F1-17E1-4E6B-958F-8EB74DCF5316}.Release|x86.ActiveCfg = Release|Win32
 		{CE38A3F1-17E1-4E6B-958F-8EB74DCF5316}.Release|x86.Build.0 = Release|Win32
-		{3563C165-8A72-4BE5-B8AF-FD5904C9030E}.Debug|x64.ActiveCfg = Debug|x64
-		{3563C165-8A72-4BE5-B8AF-FD5904C9030E}.Debug|x64.Build.0 = Debug|x64
-		{3563C165-8A72-4BE5-B8AF-FD5904C9030E}.Debug|x86.ActiveCfg = Debug|Win32
-		{3563C165-8A72-4BE5-B8AF-FD5904C9030E}.Debug|x86.Build.0 = Debug|Win32
-		{3563C165-8A72-4BE5-B8AF-FD5904C9030E}.Release|x64.ActiveCfg = Release|x64
-		{3563C165-8A72-4BE5-B8AF-FD5904C9030E}.Release|x64.Build.0 = Release|x64
-		{3563C165-8A72-4BE5-B8AF-FD5904C9030E}.Release|x86.ActiveCfg = Release|Win32
-		{3563C165-8A72-4BE5-B8AF-FD5904C9030E}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
