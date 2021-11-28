@@ -1,7 +1,9 @@
 // xllsqlite.h - sqlite3 wrapper
 #pragma once
 #include "sqlite3.h"
-#include "xll12/xll/xll.h"
+#include "xll/xll/xll.h"
+
+#define CATEGORY "SQLITE"
 
 namespace sqlite {
 
@@ -190,10 +192,10 @@ inline xll::OPER sqlite_range(sqlite::db& db, const char* sql, bool header = fal
                 row[i] = sqlite3_column_int(stmt, i);
                 break;
             case SQLITE_NULL:
-                row[i] = xll::OPER(xlerr::Null); // #NULL ???
+                row[i] = xll::ErrNA; // #NULL ???
                 break;
             default:
-                row[i] = xll::OPER(xlerr::NA);
+                row[i] = xll::ErrNA;
             }
         }
         o.push_back(row);
