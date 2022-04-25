@@ -3,15 +3,23 @@
 #include "sqlite3.h"
 #include "xll/xll/xll.h"
 
-#define CATEGORY "SQLITE"
+#define CATEGORY "SQLite"
 
 namespace sqlite {
+
+    enum class Type {
+        Integer = SQLITE_INTEGER,
+        Float = SQLITE_FLOAT,
+        Text = SQLITE_TEXT,
+        Blob = SQLITE_BLOB,
+        Null = SQLITE_NULL,
+    };
 
     class value {
         sqlite3_value* val;
     public:
         value()
-            : val(sqlite3_value_dup(0))
+            : val(sqlite3_value_dup(nullptr))
         { }
         value(const value& v)
             : val(sqlite3_value_dup(v.val))
@@ -41,28 +49,29 @@ namespace sqlite {
             sqlite3_value_free(val);
         }
 
-        int bytes() const
-        {
-            return sqlite3_value_bytes(val);
-        }
         int type() const
         {
             return sqlite3_value_type(val);
         }
+
+        int bytes() const
+        {
+            return sqlite3_value_bytes(val);
+        }
     };
 
     // Sqlite converts wide strings to UTF-8 so we avoid *16* functions.
-    class db {
+    class open {
         sqlite3* pdb;
     public:
-        db(const char* file, int flags = SQLITE_OPEN_READONLY)
+        open(const char* file, int flags = SQLITE_OPEN_READONLY)
         {
             if (SQLITE_OK != sqlite3_open_v2(file, &pdb, flags, 0))
                 throw std::runtime_error(sqlite3_errmsg(pdb));
         }
-        db(const db&) = delete;
-        db& operator=(const db&) = delete;
-        ~db()
+        open(const open&) = delete;
+        open& operator=(const open&) = delete;
+        ~open()
         {
             sqlite3_close(pdb);
         }
@@ -71,19 +80,18 @@ namespace sqlite {
             return pdb;
         }
         class stmt {
-            sqlite::db& db;
+            sqlite::open& db;
             sqlite3_stmt* pstmt;
             const char* tail_;
         public:
-            stmt(sqlite::db& db)
+            stmt(sqlite::open& db)
                 : db(db), pstmt(nullptr), tail_(nullptr)
             { }
             stmt(const stmt&) = delete;
             stmt& operator=(const stmt&) = delete;
             ~stmt()
             {
-                if (pstmt != nullptr)
-                    sqlite3_finalize(pstmt);
+                sqlite3_finalize(pstmt);
             }
             // for use in sqlite3_* functions
             operator sqlite3_stmt*()
@@ -144,7 +152,7 @@ inline std::string narrow(const wchar_t* ws, int ns = -1)
 }
 
 // Sqlite type of oper.
-inline const char* sqlite_type(const xll::OPER& o)
+inline const char* sqlite_type(const xll::OPER4& o)
 {
     switch (o.type()) {
     case xltypeNum:
@@ -157,11 +165,11 @@ inline const char* sqlite_type(const xll::OPER& o)
 }
 
 // Works like sqlite3_exec but returns an OPER.
-inline xll::OPER sqlite_range(sqlite::db& db, const char* sql, bool header = false)
+inline xll::OPER4 sqlite_exec(sqlite::open& db, const char* sql, bool header = false)
 {
-    xll::OPER o;
+    xll::OPER4 o;
 
-    sqlite::db::stmt stmt(db);
+    sqlite::open::stmt stmt(db);
     int rc = stmt.prepare(sql);
     if (SQLITE_OK != rc)
         throw std::runtime_error(stmt.errmsg());
@@ -172,30 +180,30 @@ inline xll::OPER sqlite_range(sqlite::db& db, const char* sql, bool header = fal
    
     int n = sqlite3_column_count(stmt);
     if (header) {
-        xll::OPER head(1, n);
+        xll::OPER4 head(1, n);
         for (int i = 0; i < n; ++i) {
-            head[i] = xll::OPER((const XCHAR*)sqlite3_column_name16(stmt, i));
+            head[i] = sqlite3_column_name(stmt, i);
         }
         o.push_back(head);
     }
     while (SQLITE_ROW == rc) {
-        xll::OPER row(1, n);
+        xll::OPER4 row(1, n);
         for (int i = 0; i < n; ++i) {
             switch (sqlite3_column_type(stmt, i)) {
             case SQLITE_FLOAT:
                 row[i] = sqlite3_column_double(stmt, i);
                 break;
             case SQLITE_TEXT:
-                row[i] = xll::OPER((const XCHAR*)sqlite3_column_text16(stmt, i));
+                row[i] = (char*)sqlite3_column_text(stmt, i);
                 break;
             case SQLITE_INTEGER:
                 row[i] = sqlite3_column_int(stmt, i);
                 break;
             case SQLITE_NULL:
-                row[i] = xll::ErrNA; // #NULL ???
+                row[i] = xll::ErrNull4;
                 break;
             default:
-                row[i] = xll::ErrNA;
+                row[i] = xll::ErrNA4;
             }
         }
         o.push_back(row);

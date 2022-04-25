@@ -3,6 +3,8 @@
 #include "xllsqlite.h"
 
 using namespace xll;
+using xcstr = traits<XLOPERX>::xcstr;
+
 /*
 AddIn xai_sqlite(
     Documentation("Sqlite3 wrapper")
@@ -19,18 +21,19 @@ XLL_CONST(LONG, SQLITE_OPEN_MEMORY, SQLITE_OPEN_MEMORY, "Open data base in memor
 XLL_CONST(LONG, SQLITE_OPEN_NOMUTEX, SQLITE_OPEN_NOMUTEX, "Do not use mutal exclusing when accessing database.", CATEGORY, SQLITE_OPEN_URL);
 XLL_CONST(LONG, SQLITE_OPEN_FULLMUTEX, SQLITE_OPEN_FULLMUTEX, "Use mutal exclusing when accessing database.", CATEGORY, SQLITE_OPEN_URL);
 
-AddIn xai_sqlite_db(
-    Function(XLL_HANDLE, "xll_sqlite_db", "SQLITE.DB")
+AddIn xai_sqlite_open(
+    Function(XLL_HANDLE, "xll_sqlite_open", "\\SQLITE.OPEN")
     .Arguments({
         Arg(XLL_CSTRING4, "file", "is the name of the sqlite3 database to open."),
-        Arg(XLL_SHORT, "flags", "is an optional set of flags from the SQLITE_OPEN_* enumeration to use when opening the database. Default is SQLITE_OPEN_READONLY."),
+        Arg(XLL_LONG, "flags", "is an optional set of flags from the SQLITE_OPEN_* enumeration to use when opening the database. Default is SQLITE_OPEN_READONLY."),
         })
     .Uncalced()
     .FunctionHelp("Return a handle to a sqlite3 database.")
-    .Category("SQLITE")
-    .Documentation("Call sqlite3_open_v2 with flags SQLITE_OPEN_READONLY.")
+    .Category(CATEGORY)
+    .HelpTopic("https://www.sqlite.org/c3ref/open.html")
+    //.Documentation("")
 );
-HANDLEX WINAPI xll_sqlite_db(const char* file, SHORT flags)
+HANDLEX WINAPI xll_sqlite_open(const char* file, LONG flags)
 {
 #pragma XLLEXPORT
     HANDLEX h = INVALID_HANDLEX;
@@ -39,7 +42,7 @@ HANDLEX WINAPI xll_sqlite_db(const char* file, SHORT flags)
         if (flags == 0)
             flags = SQLITE_OPEN_READONLY;
 
-        handle<sqlite::db> h_(new sqlite::db(file, flags));
+        handle<sqlite::open> h_(new sqlite::open(file, flags));
         h = h_.get();
     }
     catch (const std::exception& ex) {
@@ -49,26 +52,209 @@ HANDLEX WINAPI xll_sqlite_db(const char* file, SHORT flags)
     return h;
 }
 
-AddIn xai_sqlite_exec(
-    Function(XLL_LPOPER, "?xll_sqlite_exec", "SQLITE.EXEC")
+/*
+CREATE.TABLE(table-name, {name, constraint(type-name);...})
+CREATE.TEMP.TABLE
+CREATE.TABLE.IF_NOT_EXISTS
+CREATE.TEMP.TABLE.IF_NOT_EXISTS
+
+CONSTRAINT(name, ...)
+PRIMARY_KEY[.ASC|.DESC](clause)[.AUTOINCREMENT]
+    ON_CONFLICT_ROLLBACK
+    ON_CONFLICT_ABORT
+    ...
+
+HAVING(expr, GROUP_BY({expr,...}, WHERE(expr, FROM(table, SELECT({column,...})))))
+SELECT.ALL
+SELECT.DISTINCT
+*/
+
+/*
+AddIn xai_range(
+    Function(XLL_LPOPER4, "xll_range", "RANGE")
     .Arguments({
-        Arg(XLL_HANDLE, "handle", "is the sqlite3 database handle returned by SQLITE.DB."),
-        Arg(XLL_CSTRING4, "sql", "is the SQL query to execute on the database."),
-        Arg(XLL_BOOL, "?headers", "is an optional argument to specify if headers should be included. Default is false."),
+        Arg(XLL_HANDLE, "handle", "is a handle to a range.")
         })
-    .FunctionHelp("Return the result of executing a SQL command on a database.")
-    .Category("SQLITE")
-    .Documentation("")
+    .Category("XLL")
+    .FunctionHelp("Return the range corresponding to a handle.")
 );
-LPOPER WINAPI xll_sqlite_exec(HANDLEX h, const char* sql, BOOL headers)
+*/
+//struct SELECT : public OPER4 {};
+
+AddIn xai_sql_select(
+    Function(XLL_LPOPER4, "xll_sql_select", "SQL.SELECT") // .ALL, .DISTINCT
+    .Arguments({
+        Arg(XLL_LPOPER4, "columns", "is a range of the columns to return."),
+        })
+    .Category(CATEGORY)
+    .FunctionHelp("Return SQL SELECT statement.")
+    .HelpTopic("https://www.sqlite.org/syntax/select-core.html")
+);
+LPOPER4 WINAPI xll_sql_select(const LPOPER4 pcols)
 {
 #pragma XLLEXPORT
-    static OPER o;
+    static OPER4 result;
+    result = ErrValue4;
 
     try {
-        handle<sqlite::db> h_(h);
+        OPER4 sel("SELECT ");
+        OPER4 comma("");
+        for (const auto& col : *pcols) {
+            ensure(col.is_str());
+            sel &= comma;
+            sel &= col;
+            comma = ", ";
+        }
+        result.swap(sel);
+    }
+    catch (const std::exception& ex) {
+        XLL_ERROR(ex.what());
+    }
+
+    return &result;
+}
+
+AddIn xai_sql_from(
+    Function(XLL_LPOPER4, "xll_sql_from", "SQL.FROM")
+    .Arguments({
+        Arg(XLL_CSTRING4, "table", "is the table to select from."),
+        Arg(XLL_LPOPER4, "select", "is a SELECT statement."),
+        })
+        .Category(CATEGORY)
+    .FunctionHelp("Return SQL from statement.")
+    .HelpTopic("https://www.sqlite.org/syntax/select-core.html")
+);
+LPOPER4 WINAPI xll_sql_from(const char* table, const LPOPER4 psel)
+{
+#pragma XLLEXPORT
+    static OPER4 result;
+    result = ErrNA4;
+
+    try {
+        result = *psel;
+        result.resize(result.size(), 1);
+        result.push_bottom(OPER4("FROM ").append(table));
+    }
+    catch (const std::exception& ex) {
+        XLL_ERROR(ex.what());
+    }
+
+    return &result;
+}
+
+AddIn xai_sql_where(
+    Function(XLL_LPOPER4, "xll_sql_where", "SQL.WHERE")
+    .Arguments({
+        Arg(XLL_CSTRING4, "expr", "is an expresion."),
+        Arg(XLL_LPOPER4, "from", "is a FROM statement."),
+        })
+        .Category(CATEGORY)
+    .FunctionHelp("Return SQL where statement.")
+    .HelpTopic("https://www.sqlite.org/syntax/select-core.html")
+);
+LPOPER4 WINAPI xll_sql_where(const char* expr, const LPOPER4 psel)
+{
+#pragma XLLEXPORT
+    static OPER4 result;
+    result = ErrNA4;
+
+    try {
+        result = *psel;
+        result.resize(result.size(), 1);
+        result.push_bottom(OPER4("WHERE ").append(expr));
+    }
+    catch (const std::exception& ex) {
+        XLL_ERROR(ex.what());
+    }
+
+    return &result;
+}
+
+AddIn xai_sql_group_by(
+    Function(XLL_LPOPER4, "xll_sql_group_by", "SQL.GROUP_BY")
+    .Arguments({
+        Arg(XLL_LPOPER4, "exprs", "is a range of expresions."),
+        Arg(XLL_LPOPER4, "where", "is a WHERE statement."),
+        })
+        .Category(CATEGORY)
+    .FunctionHelp("Return SQL GROUP BY statement.")
+    .HelpTopic("https://www.sqlite.org/syntax/select-core.html")
+);
+LPOPER4 WINAPI xll_sql_group_by(const LPOPER4 pexprs, const LPOPER4 psel)
+{
+#pragma XLLEXPORT
+    static OPER4 result;
+    result = ErrNA4;
+
+    try {
+        OPER4 gb("GROUP BY ");
+        OPER4 comma("");
+        for (const auto& expr : *pexprs) {
+            ensure(expr.is_str());
+            gb &= comma;
+            gb &= expr;
+            comma = ", ";
+        }
+        result = *psel;
+        result.resize(result.size(), 1);
+        result.push_bottom(gb);
+    }
+    catch (const std::exception& ex) {
+        XLL_ERROR(ex.what());
+    }
+
+    return &result;
+}
+
+// HAVING(expr)
+// ORDER_BY(exprs)
+// LIMIT(expr,...
+
+AddIn xai_create_table(
+    Function(XLL_HANDLE, "xll_create_table", "SQLITE.CREATE_TABLE")
+    .Arguments({
+        Arg(XLL_HANDLE, "db", "is a handle to a database."),
+        Arg(XLL_CSTRING4, "table", "is the name of the table."),
+        })
+    .Category(CATEGORY)
+    .FunctionHelp("Create a table in a database.")
+);
+HANDLEX WINAPI xll_create_table(HANDLEX db, const char* /*table*/)
+{
+#pragma XLLEXPORT
+    return db;
+}
+
+AddIn xai_sqlite_exec(
+    Function(XLL_LPOPER4, "xll_sqlite_exec", "SQLITE.EXEC")
+    .Arguments({
+        Arg(XLL_HANDLE, "handle", "is the sqlite3 database handle returned by SQLITE.DB."),
+        Arg(XLL_LPOPER4, "sql", "is the SQL query to execute on the database."),
+        Arg(XLL_BOOL, "_headers", "is an optional argument to specify if headers should be included. Default is false."),
+        })
+    .FunctionHelp("Return the result of executing a SQL command on a database.")
+    .Category(CATEGORY)
+    .HelpTopic("https://www.sqlite.org/c3ref/exec.html")
+    .Documentation("")
+);
+LPOPER4 WINAPI xll_sqlite_exec(HANDLEX h, const LPOPER4 psql, BOOL headers)
+{
+#pragma XLLEXPORT
+    static OPER4 o;
+    o = ErrNA4;
+
+    try {
+        std::string sql;
+        for (const auto& s : *psql) {
+            ensure(s.is_str());
+            sql.append(s.val.str + 1, s.val.str[0]);
+            sql.append(" ");
+        }
+
+        handle<sqlite::open> h_(h);
         ensure (h_.ptr());
-        o = sqlite_range(*h_, sql, headers);
+        
+        o = sqlite_exec(*h_, sql.c_str(), headers);
     }
     catch (const std::exception& ex) {
         XLL_ERROR(ex.what());
