@@ -213,22 +213,66 @@ LPOPER4 WINAPI xll_sql_group_by(const LPOPER4 pexprs, const LPOPER4 psel)
 AddIn xai_create_table(
     Function(XLL_HANDLE, "xll_create_table", "SQLITE.CREATE_TABLE")
     .Arguments({
-        Arg(XLL_HANDLE, "db", "is a handle to a database."),
+        Arg(XLL_HANDLE, "handle", "is a handle to a database."),
         Arg(XLL_CSTRING4, "table", "is the name of the table."),
+        Arg(XLL_LPOPER4, "names", "is an array of column names."),
+        Arg(XLL_LPOPER4, "types", "is an array of SQL types."),
+        Arg(XLL_LPOPER4, "_contraints", "is an optional array of contraints."),
         })
     .Category(CATEGORY)
-    .FunctionHelp("Create a table in a database.")
+    .FunctionHelp("Create a table in a database and return handle.")
 );
-HANDLEX WINAPI xll_create_table(HANDLEX db, const char* /*table*/)
+HANDLEX WINAPI xll_create_table(HANDLEX h, const char* table, 
+    const LPOPER4 pnames, const LPOPER4 ptypes, const LPOPER4 pconstraints)
 {
 #pragma XLLEXPORT
-    return db;
+    try {
+        ensure(pnames->size() == ptypes->size());
+        ensure(pconstraints->is_missing() or pnames->size() == pconstraints->size());
+
+        handle<sqlite::open> h_(h);
+        ensure(h_.ptr());
+
+        std::string ct("CREATE TABLE ");
+        ct.append(table);
+        ct.append(" (");
+  
+        std::string comma = "";
+        const OPER4& name(*pnames);
+        const OPER4& type(*ptypes);
+		for (unsigned i = 0; i < pnames->size(); ++i) {
+			ensure(name[i].is_str());
+			ensure(type[i].is_str());
+			ct.append(comma);
+            ct.append(name[i].val.str + 1, name[i].val.str[0]);
+            ct.append(" ");
+            ct.append(type[i].val.str + 1, type[i].val.str[0]);
+            if (!pconstraints->is_missing()) {
+                const auto& ci = index(*pconstraints, i);
+                ensure(ci.is_str());
+                if (ci) {
+                    ct.append(" ");
+                    ct.append(ci.val.str + 1, ci.val.str[0]);
+                }
+            }
+
+            comma = ", ";
+        }
+        ct.append(")");
+
+        sqlite_exec(*h_, ct.c_str());
+    }
+    catch (const std::exception& ex) {
+        XLL_ERROR(ex.what());
+    }
+
+    return h;
 }
 
 AddIn xai_sqlite_exec(
     Function(XLL_LPOPER4, "xll_sqlite_exec", "SQLITE.EXEC")
     .Arguments({
-        Arg(XLL_HANDLE, "handle", "is the sqlite3 database handle returned by SQLITE.DB."),
+        Arg(XLL_HANDLE, "handle", "is the sqlite3 database handle returned by SQLITE.OPEN."),
         Arg(XLL_LPOPER4, "sql", "is the SQL query to execute on the database."),
         Arg(XLL_BOOL, "_headers", "is an optional argument to specify if headers should be included. Default is false."),
         })
